@@ -117,6 +117,42 @@ export default defineConfig(async (args) => {
 				}
 			},
 			{
+				name: 'patch-css-for-transparent-background',
+				apply: 'build',
+				generateBundle(options, bundle) {
+					// Fix for issue #4158: Visual highlighting issue for selected text when background has opacity
+					for (const fileName in bundle) {
+						const file = bundle[fileName];
+						if (file.type === 'asset' && fileName.endsWith('editor/editor.main.css')) {
+							let content = file.source.toString();
+							
+							// Fix for transparent background with rounded selections
+							const originalRule = '.monaco-editor-background {\n\tbackground-color: var(--vscode-editor-background);\n}';
+							const patchedRule = `.monaco-editor-background {
+\tbackground-color: var(--vscode-editor-background);
+}
+/* Fix for issue #4158: Ensure selection corner pieces work with transparent backgrounds */
+.monaco-editor .lines-content .cslr.monaco-editor-background {
+\tbackground-color: rgba(255, 255, 255, 1);
+}
+/* For dark themes */
+.monaco-editor.vs-dark .lines-content .cslr.monaco-editor-background {
+\tbackground-color: rgba(30, 30, 30, 1);
+}
+/* For high contrast themes */
+.monaco-editor.hc-black .lines-content .cslr.monaco-editor-background,
+.monaco-editor.hc-light .lines-content .cslr.monaco-editor-background {
+\tbackground-color: var(--vscode-editor-background);
+\topacity: 1;
+}`;
+							
+							content = content.replace(originalRule, patchedRule);
+							file.source = content;
+						}
+					}
+				}
+			},
+			{
 				name: 'emit-additional-files',
 				generateBundle() {
 					for (const file of getNlsFiles()) {
