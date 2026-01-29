@@ -121,12 +121,18 @@ export default defineConfig(async (args) => {
 				apply: 'build',
 				generateBundle(options, bundle) {
 					// Fix for issue #4158: Visual highlighting issue for selected text when background has opacity
+					// See: https://github.com/microsoft/monaco-editor/issues/4158
+					//
+					// When editor.background is transparent, the "inner corner" pieces used for rounded
+					// selections are also transparent, causing them to fail to mask the selection properly.
+					// This results in visual misalignment where the selection highlight doesn't match the
+					// actual caret position. The fix ensures corner pieces use opaque colors appropriate
+					// for each theme, allowing them to properly mask the selection.
 					for (const fileName in bundle) {
 						const file = bundle[fileName];
 						if (file.type === 'asset' && fileName.endsWith('editor/editor.main.css')) {
 							let content = file.source.toString();
 							
-							// Fix for transparent background with rounded selections
 							const originalRule = '.monaco-editor-background {\n\tbackground-color: var(--vscode-editor-background);\n}';
 							const patchedRule = `.monaco-editor-background {
 \tbackground-color: var(--vscode-editor-background);

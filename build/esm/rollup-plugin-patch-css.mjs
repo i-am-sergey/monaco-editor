@@ -5,6 +5,10 @@
 
 /**
  * Rollup plugin to patch CSS files for bug fixes
+ * 
+ * This plugin applies post-processing patches to CSS files from monaco-editor-core
+ * to fix bugs that can't be addressed in this wrapper repository directly.
+ * 
  * @returns {import('rollup').Plugin}
  */
 export function patchCssPlugin() {
@@ -17,13 +21,22 @@ export function patchCssPlugin() {
 				const file = bundle[fileName];
 				
 				// Fix for issue #4158: Visual highlighting issue for selected text when background has opacity
+				// See: https://github.com/microsoft/monaco-editor/issues/4158
+				//
+				// Problem: When editor.background is transparent (e.g., #00000000), multi-line text
+				// selections display incorrectly. The rounded selection rendering uses "inner corner"
+				// pieces with the monaco-editor-background class to mask parts of the selection and
+				// create rounded corners. When the editor background is transparent, these corner
+				// pieces are also transparent, so they fail to mask the selection properly, causing
+				// the visual highlight to not match the actual caret position.
+				//
+				// Solution: Override the background color for these corner pieces to use an opaque
+				// color appropriate for the theme (white for light themes, dark for dark themes).
+				// This ensures the corner pieces properly mask the selection regardless of whether
+				// the editor background is transparent or opaque.
 				if (file.type === 'asset' && fileName.endsWith('vs/editor/browser/widget/codeEditor/editor.css')) {
 					let content = file.source.toString();
 					
-					// The issue: When editor.background is transparent, the "inner corner" pieces used
-					// for rounded selections are also transparent, so they don't properly mask the selection.
-					// The fix: Make the corner pieces use a semi-transparent white/dark color that works
-					// with most backgrounds, ensuring they properly mask the selection underneath.
 					const originalRule = '.monaco-editor-background {\n\tbackground-color: var(--vscode-editor-background);\n}';
 					const patchedRule = `.monaco-editor-background {
 	background-color: var(--vscode-editor-background);
