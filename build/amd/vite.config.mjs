@@ -117,6 +117,57 @@ export default defineConfig(async (args) => {
 				}
 			},
 			{
+				name: 'patch-css-for-transparent-background',
+				apply: 'build',
+				generateBundle(options, bundle) {
+					// Fix for issue #4158: Visual highlighting issue for selected text when background has opacity
+					// See: https://github.com/microsoft/monaco-editor/issues/4158
+					//
+					// When editor.background is transparent, the "inner corner" pieces used for rounded
+					// selections are also transparent, causing them to fail to mask the selection properly.
+					// This results in visual misalignment where the selection highlight doesn't match the
+					// actual caret position. The fix ensures corner pieces use opaque colors appropriate
+					// for each theme, allowing them to properly mask the selection.
+					for (const fileName in bundle) {
+						const file = bundle[fileName];
+						if (file.type === 'asset' && fileName.replace(/\\/g, '/').endsWith('editor/editor.main.css')) {
+							let content = file.source.toString();
+							
+							const originalRule = '.monaco-editor-background {\n\tbackground-color: var(--vscode-editor-background);\n}';
+							const patchedRule = `.monaco-editor-background {
+\tbackground-color: var(--vscode-editor-background);
+}
+/* Fix for issue #4158: Ensure selection corner pieces work with transparent backgrounds */
+.monaco-editor .lines-content .cslr.monaco-editor-background {
+\tbackground-color: rgba(255, 255, 255, 1);
+}
+/* For dark themes */
+.monaco-editor.vs-dark .lines-content .cslr.monaco-editor-background {
+\tbackground-color: rgba(30, 30, 30, 1);
+}
+/* For high contrast themes */
+.monaco-editor.hc-black .lines-content .cslr.monaco-editor-background,
+.monaco-editor.hc-light .lines-content .cslr.monaco-editor-background {
+\tbackground-color: var(--vscode-editor-background);
+\topacity: 1;
+}`;
+							
+							const newContent = content.replace(originalRule, patchedRule);
+							
+							// Verify the replacement was successful
+							if (newContent === content) {
+								console.warn(`WARNING: CSS patch for issue #4158 was not applied - original rule not found in ${fileName}`);
+								console.warn('This may indicate that monaco-editor-core has changed. The transparent background selection bug may not be fixed.');
+							} else if (newContent.split(patchedRule).length - 1 > 1) {
+								console.warn(`WARNING: Multiple replacements occurred for CSS patch in ${fileName}`);
+							}
+							
+							file.source = newContent;
+						}
+					}
+				}
+			},
+			{
 				name: 'emit-additional-files',
 				generateBundle() {
 					for (const file of getNlsFiles()) {

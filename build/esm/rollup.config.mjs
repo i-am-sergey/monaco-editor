@@ -15,6 +15,7 @@ import nodeResolve from '@rollup/plugin-node-resolve';
 import { urlToEsmPlugin } from './rollup-url-to-module-plugin/index.mjs';
 import { getEntryPoints, getNlsFiles, mapModuleId } from '../shared.mjs';
 import { readFileSync } from 'fs';
+import { patchCssPlugin } from './rollup-plugin-patch-css.mjs';
 
 
 const root = join(import.meta.dirname, '../../');
@@ -85,5 +86,6 @@ export default defineConfig({
 			dedupe: ['monaco-editor-core', '@vscode/monaco-lsp-client'],
 			browser: true,
 		}),
+		patchCssPlugin(),
 	],
 });
