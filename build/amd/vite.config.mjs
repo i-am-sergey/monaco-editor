@@ -130,7 +130,7 @@ export default defineConfig(async (args) => {
 					// for each theme, allowing them to properly mask the selection.
 					for (const fileName in bundle) {
 						const file = bundle[fileName];
-						if (file.type === 'asset' && fileName.endsWith('editor/editor.main.css')) {
+						if (file.type === 'asset' && fileName.replace(/\\/g, '/').endsWith('editor/editor.main.css')) {
 							let content = file.source.toString();
 							
 							const originalRule = '.monaco-editor-background {\n\tbackground-color: var(--vscode-editor-background);\n}';
@@ -152,8 +152,17 @@ export default defineConfig(async (args) => {
 \topacity: 1;
 }`;
 							
-							content = content.replace(originalRule, patchedRule);
-							file.source = content;
+							const newContent = content.replace(originalRule, patchedRule);
+							
+							// Verify the replacement was successful
+							if (newContent === content) {
+								console.warn(`WARNING: CSS patch for issue #4158 was not applied - original rule not found in ${fileName}`);
+								console.warn('This may indicate that monaco-editor-core has changed. The transparent background selection bug may not be fixed.');
+							} else if (newContent.split(patchedRule).length - 1 > 1) {
+								console.warn(`WARNING: Multiple replacements occurred for CSS patch in ${fileName}`);
+							}
+							
+							file.source = newContent;
 						}
 					}
 				}
